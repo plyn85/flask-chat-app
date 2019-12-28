@@ -1,47 +1,39 @@
 import os
 from datetime import datetime
-from flask import Flask, redirect, render_template, request, session
+from flask import Flask, redirect, render_template, request, session, url_for
+
+
 app = Flask(__name__)
 app.secret_key = "randomstring123"
 messages = []
 
 
-def add_messages(username, message):
+def add_message(username, message):
     """Add messages to the `messages` list"""
     now = datetime.now().strftime("%H:%M:%S")
-    messages.append("({}) {}: {}".format(now, username, message))
-
-
-def get_all_messages():
-    return "<br>".join(messages)
+    messages.append({"timestamp": now, "from": username, "message": message})
 
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    """main page with instructions"""
+    """Main page with instructions"""
     if request.method == "POST":
         session["username"] = request.form["username"]
+
     if "username" in session:
-        return redirect(session["username"])
+        return redirect(url_for("user", username=session["username"]))
 
     return render_template("index.html")
 
-# if user enters there user name we will return welcome plus the username
-@app.route("/<username>")
+
+@app.route("/chat/<username>", methods=["GET", "POST"])
 def user(username):
-    """display messages"""
-    return "<h1>Welcome, {0}</h1>{1}".format(username, get_all_messages())
+    """Add and display chat messages"""
+    if request.method == "POST":
+        username = session["username"]
+        message = request.form["message"]
+        add_message(username, message)
+        return redirect(url_for("user", username=session["username"]))
 
-# if the user enters the user name and a message there name and a message
-
-
-@app.route("/<username>/<message>")
-def send_message(username, message):
-    """create a new message and redirect to the chat page"""
-    add_messages(username, message)
-    return redirect("/" + username)
-
-
-if __name__ == '__main__':
-        # Threaded option to enable multiple instances for multiple user access support
-    app.run(threaded=True, port=5000)
+    return render_template("chat.html", username=username,
+                           chat_messages=messages)
